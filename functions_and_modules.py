@@ -1,3 +1,14 @@
+"""
+Helper functions and modules
+
+Relevant scripts in fastai:
+    * imports.py
+    * column_data.py
+    * structured.py
+    * datasets.py
+"""
+
+
 import re
 import datetime
 import math
@@ -214,32 +225,66 @@ def proc_df(df, y_fld=None, skip_flds=None, ignore_flds=None, do_scale=False, na
     1.0  0.0  0.0   1.04
     0.0  0.0  1.0   0.21
     """
-    if not ignore_flds: ignore_flds=[]
-    if not skip_flds: skip_flds=[]
-    if subset: df = get_sample(df,subset)
-    else: df = df.copy()
-    ignored_flds = df.loc[:, ignore_flds]
-    df.drop(ignore_flds, axis=1, inplace=True)
-    if preproc_fn: preproc_fn(df)
-    if y_fld is None: y = None
+    if not ignore_flds:
+        ignore_flds = []
+
+    if not skip_flds:
+        skip_flds = []
+
+    if subset:
+        df = get_sample(df, subset)
     else:
-        if not is_numeric_dtype(df[y_fld]): df[y_fld] = df[y_fld].cat.codes
+        df = df.copy()
+
+    ignored_flds = df.loc[:, ignore_flds]
+
+    df.drop(ignore_flds, axis=1, inplace=True)
+
+    if preproc_fn:
+        preproc_fn(df)
+
+    if y_fld is None:
+        y = None
+    else:
+        if not is_numeric_dtype(df[y_fld]):
+            df[y_fld] = df[y_fld].cat.codes
         y = df[y_fld].values
         skip_flds += [y_fld]
     df.drop(skip_flds, axis=1, inplace=True)
 
-    if na_dict is None: na_dict = {}
-    else: na_dict = na_dict.copy()
+    if na_dict is None:
+        na_dict = {}
+    else:
+        na_dict = na_dict.copy()
+
     na_dict_initial = na_dict.copy()
-    for n,c in df.items(): na_dict = fix_missing(df, c, n, na_dict)
+
+    for n, c in df.items():
+        na_dict = fix_missing(df, c, n, na_dict)
+
     if len(na_dict_initial.keys()) > 0:
-        df.drop([a + '_na' for a in list(set(na_dict.keys()) - set(na_dict_initial.keys()))], axis=1, inplace=True)
-    if do_scale: mapper = scale_vars(df, mapper)
-    for n,c in df.items(): numericalize(df, c, n, max_n_cat)
+
+        df.drop(
+            [
+                a + '_na' for a in list(
+                    set(na_dict.keys()) - set(na_dict_initial.keys()))
+            ],
+            axis=1, inplace=True
+        )
+
+    if do_scale:
+        mapper = scale_vars(df, mapper)
+
+    for n, c in df.items():
+        numericalize(df, c, n, max_n_cat)
+
     df = pd.get_dummies(df, dummy_na=True)
     df = pd.concat([ignored_flds, df], axis=1)
     res = [df, y, na_dict]
-    if do_scale: res = res + [mapper]
+
+    if do_scale:
+        res = res + [mapper]
+
     return res
 
 
