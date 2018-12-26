@@ -133,6 +133,7 @@ def get_cv_idxs(n, cv_idx=0, val_pct=0.2, seed=42):
     idxs = np.random.permutation(n)
     return idxs[idx_start:idx_start+n_val]
 
+
 def proc_df(df, y_fld=None, skip_flds=None, ignore_flds=None, do_scale=False, na_dict=None,
             preproc_fn=None, max_n_cat=None, subset=None, mapper=None):
     """ proc_df takes a data frame df and splits off the response variable, and
@@ -263,7 +264,6 @@ def proc_df(df, y_fld=None, skip_flds=None, ignore_flds=None, do_scale=False, na
         na_dict = fix_missing(df, c, n, na_dict)
 
     if len(na_dict_initial.keys()) > 0:
-
         df.drop(
             [
                 a + '_na' for a in list(
@@ -289,8 +289,8 @@ def proc_df(df, y_fld=None, skip_flds=None, ignore_flds=None, do_scale=False, na
 
 
 def fix_missing(df, col, name, na_dict):
-    """ Fill missing data in a column of df with the median, and add a {name}_na column
-    which specifies if the data was missing.
+    """ Fill missing data in a column of df with the median, and add a
+    {name}_na column which specifies if the data was missing.
 
     Parameters:
     -----------
@@ -300,10 +300,10 @@ def fix_missing(df, col, name, na_dict):
 
     name: The name of the new filled column in df.
 
-    na_dict: A dictionary of values to create na's of and the value to insert. If
-        name is not a key of na_dict the median will fill any missing data. Also
-        if name is not a key of na_dict and there is no missing data in col, then
-        no {name}_na column is not created.
+    na_dict: A dictionary of values to create na's of and the value to insert.
+    If name is not a key of na_dict the median will fill any missing data.
+    Also if name is not a key of na_dict and there is no missing data in col,
+    then no {name}_na column is not created.
 
 
     Examples:
@@ -354,19 +354,26 @@ def fix_missing(df, col, name, na_dict):
     """
     if is_numeric_dtype(col):
         if pd.isnull(col).sum() or (name in na_dict):
-            df[name+'_na'] = pd.isnull(col)
+            df[name + '_na'] = pd.isnull(col)
             filler = na_dict[name] if name in na_dict else col.median()
             df[name] = col.fillna(filler)
             na_dict[name] = filler
     return na_dict
 
+
 def scale_vars(df, mapper):
-    warnings.filterwarnings('ignore', category=sklearn.exceptions.DataConversionWarning)
+    warnings.filterwarnings(
+        'ignore', category=sklearn.exceptions.DataConversionWarning)
+
     if mapper is None:
-        map_f = [([n],StandardScaler()) for n in df.columns if is_numeric_dtype(df[n])]
+        map_f = [([n], StandardScaler()) for n in df.columns
+                 if is_numeric_dtype(df[n])]
         mapper = DataFrameMapper(map_f).fit(df)
+
     df[mapper.transformed_names_] = mapper.transform(df)
+
     return mapper
+
 
 def numericalize(df, col, name, max_n_cat):
     """ Changes the column col from a categorical type to it's integer codes.
@@ -412,20 +419,56 @@ def numericalize(df, col, name, max_n_cat):
     1     2    b    2
     2     3    a    1
     """
-    if not is_numeric_dtype(col) and ( max_n_cat is None or len(col.cat.categories)>max_n_cat):
-        df[name] = col.cat.codes+1
+    if not is_numeric_dtype(col) and (max_n_cat is None or len(col.cat.categories) > max_n_cat):
+        df[name] = col.cat.codes + 1
+
 
 def split_by_idx(idxs, *a):
-    """
-    Split each array passed as *a, to a pair of arrays like this (elements selected by idxs,  the remaining elements)
-    This can be used to split multiple arrays containing training data to validation and training set.
+    """Split each array passed as *a, to a pair of arrays like this
+    (elements selected by idxs,  the remaining elements)
+
+    This can be used to split multiple arrays containing training
+    data to validation and training set.
 
     :param idxs [int]: list of indexes selected
-    :param a list: list of np.array, each array should have same amount of elements in the first dimension
-    :return: list of tuples, each containing a split of corresponding array from *a.
-            First element of each tuple is an array composed from elements selected by idxs,
-            second element is an array of remaining elements.
+    :param a list: list of np.array, each array should have same amount of
+                   elements in the first dimension
+    :return: list of tuples, each containing a split of corresponding
+             array from *a.
+             First element of each tuple is an array composed
+             from elements selected by idxs,
+             Second element is an array of remaining elements.
     """
-    mask = np.zeros(len(a[0]),dtype=bool)
+    mask = np.zeros(len(a[0]), dtype=bool)
     mask[np.array(idxs)] = True
-    return [(o[mask],o[~mask]) for o in a]
+    return [(o[mask], o[~mask]) for o in a]
+
+
+class CompFuncs:
+    '''Competition specific functions
+    '''
+    @staticmethod
+    def get_elapsed(df, fld, pre):
+        day1 = np.timedelta64(1, 'D')
+        last_date = np.datetime64()
+        last_store = 0
+        res = []
+
+        for s, v, d in zip(df.Store.values, df[fld].values, df.Date.values):
+            if s != last_store:
+                last_date = np.datetime64()
+                last_store = s
+            if v:
+                last_date = d
+            res.append(((d - last_date).astype('timedelta64[D]') / day1))
+        df[pre + fld] = res
+
+    @staticmethod
+    def inv_y(a):
+        return np.exp(a)
+
+    @staticmethod
+    def exp_rmspe(y_pred, targ):
+        targ = CompFuncs.inv_y(targ)
+        pct_var = (targ - CompFuncs.inv_y(y_pred)) / targ
+        return math.sqrt((pct_var**2).mean())
