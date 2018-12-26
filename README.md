@@ -1,6 +1,6 @@
 # Rossman Sales Forecasting Kaggle Competition
 
-__Goal__: Forecast sales for each store
+__Goal__: Forecast the next two weeks of sales for each store
 
 ## Important lessons learned:
     * !!
